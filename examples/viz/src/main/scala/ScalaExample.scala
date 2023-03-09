@@ -20,7 +20,9 @@
 import org.apache.log4j.{Level, Logger}
 import org.apache.sedona.core.enums.{FileDataSplitter, GridType, IndexType}
 import org.apache.sedona.core.spatialOperator.JoinQuery
-import org.apache.sedona.core.spatialRDD.{PointRDD, PolygonRDD, RectangleRDD}
+import org.apache.sedona.core.formatMapper.EarthdataHDFPointMapper
+import org.apache.sedona.core.formatMapper.shapefileParser.ShapefileReader
+import org.apache.sedona.core.spatialRDD.{PointRDD, PolygonRDD, RectangleRDD, SpatialRDD}
 import org.apache.sedona.sql.utils.SedonaSQLRegistrator
 import org.apache.sedona.viz.core.Serde.SedonaVizKryoRegistrator
 import org.apache.sedona.viz.core.{ImageGenerator, ImageSerializableWrapper, RasterOverlayOperator}
@@ -32,13 +34,15 @@ import org.apache.spark.sql.SQLContext
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 import org.locationtech.jts.geom.Envelope
+import org.opengis.referencing.FactoryException
+import org.locationtech.jts.geom.{Coordinate, Geometry, GeometryFactory}
 
 import java.awt.Color
 import java.io.FileInputStream
 import java.util.Properties
 
 
-object ScalaExample extends App{
+object ScalaExample extends App {
 	Logger.getLogger("org").setLevel(Level.WARN)
 	Logger.getLogger("akka").setLevel(Level.WARN)
 
@@ -76,23 +80,27 @@ object ScalaExample extends App{
 	val PolygonSplitter = FileDataSplitter.getFileDataSplitter(prop.getProperty("splitter"))
 	val PolygonNumPartitions = prop.getProperty("numPartitions").toInt
 	val USMainLandBoundary = new Envelope(-126.790180, -64.630926, 24.863836, 50.000)
-//	val earthdataInputLocation = System.getProperty("user.dir") + "/src/test/resources/modis/modis.csv"
-//	val earthdataNumPartitions = 5
-//	val HDFIncrement = 5
-//	val HDFOffset = 2
-//	val HDFRootGroupName = "MOD_Swath_LST"
-//	val HDFDataVariableName = "LST"
-//	val HDFDataVariableList = Array("LST", "QC", "Error_LST", "Emis_31", "Emis_32")
-//	val HDFswitchXY = true
-//	val urlPrefix = System.getProperty("user.dir") + "/src/test/resources/modis/"
+	val earthdataInputLocation = System.getProperty("user.dir") + "/src/test/resources/modis/modis.csv"
+	val earthdataNumPartitions = 5
+	val HDFIncrement = 5
+	val HDFOffset = 2
+	val HDFRootGroupName = "MOD_Swath_LST"
+	val HDFDataVariableName = "LST"
+        // val HDFDataVariableList = Array("LST", "QC", "Error_LST", "Emis_31", "Emis_32")
+        val HDFDataVariableList = Array("LST")
+	val HDFswitchXY = true
+	val urlPrefix = System.getProperty("user.dir") + "/src/test/resources/modis/"
 
-	if (buildScatterPlot(scatterPlotOutputPath)
-		&& buildHeatMap(heatMapOutputPath)
-		&& buildChoroplethMap(choroplethMapOutputPath)
-		&& parallelFilterRenderNoStitch(parallelFilterRenderOutputPath)
-//		&& earthdataVisualization(earthdataScatterPlotOutputPath)
-		&& sqlApiVisualization(sqlApiOutputPath))
-		System.out.println("All SedonaViz Demos have passed.")
+          //	if (buildScatterPlot(scatterPlotOutputPath)
+          //	&& buildHeatMap(heatMapOutputPath)
+          //	&& buildChoroplethMap(choroplethMapOutputPath)
+          // && parallelFilterRenderNoStitch(parallelFilterRenderOutputPath)
+          //	&& earthdataVisualization(earthdataScatterPlotOutputPath)
+          //	&& sqlApiVisualization(sqlApiOutputPath)
+          // )
+
+        if (earthdataVisualization(earthdataScatterPlotOutputPath))
+            System.out.println("All SedonaViz Demos have passed.")
 	else System.out.println("SedonaViz Demos failed.")
 
 	/**
@@ -167,17 +175,35 @@ object ScalaExample extends App{
 		true
 	}
 
-//	def earthdataVisualization(outputPath: String): Boolean = {
-//		val earthdataHDFPoint = new EarthdataHDFPointMapper(HDFIncrement, HDFOffset, HDFRootGroupName,
-//			HDFDataVariableList, HDFDataVariableName, HDFswitchXY, urlPrefix)
-//		val spatialRDD = new PointRDD(sparkContext, earthdataInputLocation, earthdataNumPartitions, earthdataHDFPoint, StorageLevel.MEMORY_ONLY)
-//		val visualizationOperator = new ScatterPlot(1000, 600, spatialRDD.boundaryEnvelope, ColorizeOption.EARTHOBSERVATION, false, false)
-//		visualizationOperator.CustomizeColor(255, 255, 255, 255, Color.BLUE, true)
-//		visualizationOperator.Visualize(sparkContext, spatialRDD)
-//		val imageGenerator = new ImageGenerator
-//		imageGenerator.SaveRasterImageAsLocalFile(visualizationOperator.rasterImage, outputPath, ImageType.PNG)
-//		true
-//	}
+	def earthdataVisualization(outputPath: String): Boolean = {
+		val earthdataHDFPoint = new EarthdataHDFPointMapper(HDFIncrement, HDFOffset, HDFRootGroupName,
+			HDFDataVariableList, HDFDataVariableName, HDFswitchXY, urlPrefix)
+		val spatialRDD = new PointRDD(sparkContext, earthdataInputLocation, earthdataNumPartitions, earthdataHDFPoint, StorageLevel.MEMORY_ONLY)
+                // spatialRDD.saveAsGeoJSON("/tmp/geo.json")
+                // println(spatialRDD.boundaryEnvelope)
+		// val visualizationOperator = new ScatterPlot(1000, 600, spatialRDD.boundaryEnvelope, ColorizeOption.EARTHOBSERVATION, false, false)
+                // val visualizationOperator = new ScatterPlot(1000, 600, spatialRDD.boundaryEnvelope, ColorizeOption.NORMAL, false, false)
+                val visualizationOperator = new HeatMap(1000, 600, spatialRDD.boundaryEnvelope, false, 2)
+		// visualizationOperator.CustomizeColor(255, 255, 255, 255, Color.BLUE, true)
+                // visualizationOperator.CustomizeColor(0, 255, 0, 255, Color.BLUE, true)
+                visualizationOperator.CustomizeColor(0, 0, 255, 0, Color.BLUE, true)
+		visualizationOperator.Visualize(sparkContext, spatialRDD)
+                
+                var qRDD = new SpatialRDD[Geometry]
+                val shapefileInputLocation = resourcePath + "WB_Coastlines_10m"
+                qRDD = ShapefileReader.readToGeometryRDD(sparkContext, shapefileInputLocation)
+                
+                val frontImage = new ScatterPlot(1000, 600, spatialRDD.boundaryEnvelope, false)
+		frontImage.CustomizeColor(0, 0, 0, 255, Color.GREEN, true)
+		frontImage.Visualize(sparkContext, qRDD)
+		val overlayOperator = new RasterOverlayOperator(visualizationOperator.rasterImage)
+		overlayOperator.JoinImage(frontImage.rasterImage)
+
+		val imageGenerator = new ImageGenerator
+		imageGenerator.SaveRasterImageAsLocalFile(overlayOperator.backRasterImage, outputPath, ImageType.PNG)                
+		// imageGenerator.SaveRasterImageAsLocalFile(visualizationOperator.rasterImage, outputPath, ImageType.PNG)
+		true
+	}
 
 	def sqlApiVisualization(outputPath: String): Boolean = {
 		val sqlContext = new SQLContext(sparkContext)

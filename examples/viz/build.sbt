@@ -39,6 +39,7 @@ val SparkCompatibleVersion = "3.0"
 
 val HadoopVersion = "2.7.2"
 
+// val SedonaVersion = "1.3.1-incubating-SNAPSHOT"
 val SedonaVersion = "1.3.1-incubating"
 
 val ScalaCompatibleVersion = "2.12"
@@ -47,6 +48,8 @@ val ScalaCompatibleVersion = "2.12"
 val dependencyScope = "compile"
 
 val geotoolsVersion = "1.3.0-27.2"
+
+val netcdfVersion = "5.5.3"
 
 //val jacksonVersion = "2.10.0"
 
@@ -65,7 +68,13 @@ libraryDependencies ++= Seq(
   "org.apache.sedona" % "sedona-python-adapter-".concat(SparkCompatibleVersion).concat("_").concat(ScalaCompatibleVersion) % SedonaVersion changing(),
   "org.apache.sedona" % "sedona-viz-".concat(SparkCompatibleVersion).concat("_").concat(ScalaCompatibleVersion) % SedonaVersion changing(),
   //  The following GeoTools packages are only required if you need CRS transformation. Under GNU Lesser General Public License (LGPL) license
-  "org.datasyslab" % "geotools-wrapper" % geotoolsVersion % "compile"
+  "org.datasyslab" % "geotools-wrapper" % geotoolsVersion % "compile",
+  "org.opengis" % "geoapi" % "3.0.0",
+  // "org.datasyslab" % "geotools-wrapper" % "geotools-24.0",
+  "org.locationtech.jts" % "jts-core" % "1.17.0",
+   "edu.ucar" % "cdm-core" % netcdfVersion % "compile",
+  // "edu.ucar" % "cdm" % netcdfVersion % "compile",
+  "edu.ucar" % "opendap" % "5.3.0" % "compile"     
 )
 
 assemblyMergeStrategy in assembly := {

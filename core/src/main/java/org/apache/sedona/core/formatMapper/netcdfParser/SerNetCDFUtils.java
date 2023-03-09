@@ -103,7 +103,7 @@ public class SerNetCDFUtils
             case LONG:
                 return new Double((Long) array.getObject(dataIndex));
             default:
-                return (Double) array.getObject(dataIndex);
+                return new Double((Integer) array.getObject(dataIndex));
         }
     }
 
